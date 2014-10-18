@@ -127,7 +127,7 @@ def save_last_tweet_id(last_tweet_id)
 end
 
 
-#redirect_standard_output()
+redirect_standard_output()
 client = configure_twitter("#{directory_for_script()}/.twitter_credentials")
 last_tweet_id = fetch_last_tweet_id()
 
@@ -189,12 +189,15 @@ end
 if respondable_tweet_ids.count <= 3
 	respondable_tweet_ids.each do |id|
 		#client.favorite(id)
+		botlog("favoriting: #{id}")
 	end
 else
 	respondable_tweet_ids.sample(3).each do |id|
 		#client.favorite(id)
+		botlog("favoriting: #{id}")
 	end
 end
 
 should_take_action_this_round = save_last_tweet_id(candidate_last_tweet_id)
 restore_standard_output()
+
