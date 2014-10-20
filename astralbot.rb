@@ -73,7 +73,7 @@ def fetch_last_tweet_id
 end
 
 def image_contains_face?(path_to_image)
-	cascades = ["./opencv_cascades/haarcascade_frontalface_default.xml", "./opencv_cascades/haarcascade_frontalface_alt.xml", "./opencv_cascades/haarcascade_frontalface_alt2.xml", "./opencv_cascades/haarcascade_frontalface_alt_tree.xml"]
+	cascades = ["#{directory_for_script()}/opencv_cascades/haarcascade_frontalface_default.xml", "#{directory_for_script()}/opencv_cascades/haarcascade_frontalface_alt.xml", "#{directory_for_script()}/opencv_cascades/haarcascade_frontalface_alt2.xml", "#{directory_for_script}/opencv_cascades/haarcascade_frontalface_alt_tree.xml"]
 
 	passed_classifier_count = 0
 
@@ -171,17 +171,22 @@ results.take(100).collect do |tweet|
   	end
 
 	url = tweet.media.first.attrs[:media_url]
-	
-	File.open("selfie_candidate.png", 'wb') do |file_handle|
+
+	open_failure_flag = false	
+	File.open("#{directory_for_script()}/selfie_candidate.png", 'wb') do |file_handle|
 		begin
 			file_handle.write open(url).read
 		rescue => err
-			botlog("Could save image locally. Error: #{err}")
-			next
+			botlog("Couldn't save image locally. Error: #{err}")
+			open_failure_flag = true
 		end
 	end
 
-	if image_contains_face?("selfie_candidate.png")
+	if open_failure_flag
+		next
+	end
+
+	if image_contains_face?("#{directory_for_script()}/selfie_candidate.png")
 		respondable_tweet_ids << tweet.id
 	end
 end
