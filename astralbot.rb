@@ -166,7 +166,7 @@ results.take(100).collect do |tweet|
   	end
 
   	# 4. No hashtags, unless there's only one and it's #selfie.
-  	if tweet.hashtags? and not (tweet.hashtags.first.text == "selfie")
+  	if tweet.hashtags? and not ((tweet.hashtags.count == 1) and (tweet.hashtags.first.text == "selfie"))
   		next
   	end
 
