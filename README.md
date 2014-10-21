@@ -11,6 +11,7 @@ Copy twitter_credentials to .twitter_credentials and replace with credentials fr
 Changelog
 =========
 
+1.0.1 - Fixed bug where hashtag filtering wasn't working if first hastag was #selfie.
 1.0.0 - Initial release.
 
 Dependencies
