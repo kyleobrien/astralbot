@@ -10,7 +10,7 @@ require 'twitter'
 include OpenCV
 
 BOT_NAME = "astralbot"
-BOT_VERSION = "1.0.0"
+BOT_VERSION = "1.0.1"
 
 
 def botlog(text)
