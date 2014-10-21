@@ -193,13 +193,13 @@ end
 
 if respondable_tweet_ids.count <= 3
 	respondable_tweet_ids.each do |id|
-		#client.favorite(id)
-		botlog("favoriting: #{id}")
+		client.favorite(id)
+		botlog("Favoriting: #{id}")
 	end
 else
 	respondable_tweet_ids.sample(3).each do |id|
-		#client.favorite(id)
-		botlog("favoriting: #{id}")
+		client.favorite(id)
+		botlog("Favoriting: #{id}")
 	end
 end
 
