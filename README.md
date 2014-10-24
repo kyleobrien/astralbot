@@ -3,6 +3,8 @@ astralbot
 
 A being of pure energy and light that exists solely to fav your selfies.
 
+https://twitter.com/brandonnn/status/448294361692782592
+
 Usage Notes
 ===========
 
@@ -37,6 +39,13 @@ Pseudocode
 	+ that don't have 1 or 2 faces as detected by a majority of OpenCV's frontal face algorithms.
 6. Randonly picks at most 3 tweets to favorite.
 7. Saves the most recently seen Tweet ID.
+
+Future
+======
+
++ Allow Instagram photos?
++ Better way to filter out retweets besides checking for "RT".
++ Keyword block list.
 
 License
 =======
