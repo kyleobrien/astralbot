@@ -97,13 +97,17 @@ def image_contains_face?(path_to_image)
 	end
 end
 
-def redirect_standard_output
+def redirect_output
 	$stdout = File.new("#{directory_for_script()}/#{BOT_NAME}.log", "a")
+	$stderr.reopen($stdout)
+
 	$stdout.sync = true
+	$stderr.sync = true
 end
 
-def restore_standard_output
+def restore_output
 	$stdout = STDOUT
+	$stderr = STDERR
 end
 
 def save_last_tweet_id(last_tweet_id)
@@ -127,14 +131,14 @@ def save_last_tweet_id(last_tweet_id)
 end
 
 
-redirect_standard_output()
+redirect_output()
 client = configure_twitter("#{directory_for_script()}/.twitter_credentials")
 last_tweet_id = fetch_last_tweet_id()
 
 # Search for selfie tweets and pick out which ones we want to take action on.
 
 candidate_last_tweet_id = nil
-respondable_tweet_ids = []
+respondable_tweets = []
 
 results = client.search("selfie -rt filter:links", :result_type => "recent", :since_id => last_tweet_id.to_i, :include_entities => true)
 results.take(100).collect do |tweet|
@@ -170,6 +174,20 @@ results.take(100).collect do |tweet|
   		next
   	end
 
+	# 5. There's a wierd thing where a lot of hashtags are crammed
+	# together with no spaces and it doesn't get counted as a such.
+	# So I'm going to set an upper bound on the count of "#" and
+	# disqualify those.	
+	if tweet.text.count("#") > 5
+		next
+	end	
+	
+	# 6. Tweets that start with "when" seem to have a high chance
+	# of being a fake image that isn't of the user.
+	if tweet.text.downcase.start_with?("when")
+		next
+	end
+
 	url = tweet.media.first.attrs[:media_url]
 
 	open_failure_flag = false	
@@ -187,22 +205,29 @@ results.take(100).collect do |tweet|
 	end
 
 	if image_contains_face?("#{directory_for_script()}/selfie_candidate.png")
-		respondable_tweet_ids << tweet.id
-	end
-end
-
-if respondable_tweet_ids.count <= 3
-	respondable_tweet_ids.each do |id|
-		client.favorite(id)
-		botlog("Favoriting: #{id}")
-	end
-else
-	respondable_tweet_ids.sample(3).each do |id|
-		client.favorite(id)
-		botlog("Favoriting: #{id}")
+		respondable_tweets << tweet
 	end
 end
 
 should_take_action_this_round = save_last_tweet_id(candidate_last_tweet_id)
-restore_standard_output()
+if should_take_action_this_round
+	if respondable_tweets.count > 3
+		respondable_tweets = respondable_tweets.sample(3)
+	end
+
+	users_favorited = []
+	respondable_tweets.each do |tweet|
+		user = tweet.attrs[:user]
+		user_id = user[:id]
+
+		if (not users_favorited.include?(user_id))
+			client.favorite(tweet.id)
+			botlog("Favoriting: #{tweet.id}")
+
+			users_favorited << user_id
+		end
+	end
+end
+
+restore_output()
 
