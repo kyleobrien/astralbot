@@ -13,6 +13,7 @@ Copy twitter_credentials to .twitter_credentials and replace with credentials fr
 Changelog
 =========
 
+1.0.2 - Set max # characters in tweet. Filter out tweets that start with "when", as it's highly predictive of a meme. Redirect standard error to log. Don't favorite more than one tweet by a user in the same round.
 1.0.1 - Fixed bug where hashtag filtering wasn't working if first hastag was #selfie.
 1.0.0 - Initial release.
 

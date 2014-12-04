@@ -10,7 +10,7 @@ require 'twitter'
 include OpenCV
 
 BOT_NAME = "astralbot"
-BOT_VERSION = "1.0.1"
+BOT_VERSION = "1.0.3"
 
 
 def botlog(text)
@@ -164,6 +164,11 @@ results.take(100).collect do |tweet|
   		next
   	end
 
+	# 2a. Tweet has a sinle link (to the image).
+	if (tweet.uris?)
+		next
+	end	
+
   	# 3. No @ mentions.
   	if tweet.user_mentions?
   		next
@@ -175,10 +180,10 @@ results.take(100).collect do |tweet|
   	end
 
 	# 5. There's a wierd thing where a lot of hashtags are crammed
-	# together with no spaces and it doesn't get counted as a such.
-	# So I'm going to set an upper bound on the count of "#" and
-	# disqualify those.	
-	if tweet.text.count("#") > 5
+	# together with no spaces and these don't get counted as
+	# hashtags by Twitter. So I'm going to run a simple regex and
+	# try to avoid them.
+	if tweet.text =~ /(#selfie#)|(\S#selfie)/i
 		next
 	end	
 	
@@ -221,10 +226,13 @@ if should_take_action_this_round
 		user_id = user[:id]
 
 		if (not users_favorited.include?(user_id))
-			client.favorite(tweet.id)
-			botlog("Favoriting: #{tweet.id}")
-
-			users_favorited << user_id
+			begin
+				client.favorite(tweet.id)
+				botlog("Favoriting: #{tweet.id}")
+				users_favorited << user_id
+			rescue => err
+				botlog("Couldn't favorite. Error: #{err}")
+			end
 		end
 	end
 end
