@@ -38,6 +38,7 @@ def configure_twitter(path_to_credentials_file)
 		end
 	rescue => err
 		botlog "Couldn't open twitter credentials file. Error: #{err}"
+		return nil
 	end
 
 	client = Twitter::REST::Client.new do |config|
@@ -64,7 +65,7 @@ def fetch_last_tweet_id
 		while (line = file.gets)
 			last_tweet_id = line
 		end
-			file.close
+		file.close
 	rescue => err
 		botlog("Couldn't open last tweet file. Error: #{err}")
 	end
@@ -81,14 +82,16 @@ def image_contains_face?(path_to_image)
 		detector = CvHaarClassifierCascade::load(cascade)
 		image = CvMat.load(path_to_image)
 		detected_objects = detector.detect_objects(image)
+
 		if (detected_objects.count > 0) and (detected_objects.count < 3)
 			passed_classifier_count += 1
 		end
 	end
 
-	# This seems like the best balance between getting rid of images that don't
-	# have a legitimate face and not rejecting too many good ones. Open to
-	# rebalancing this in the future or coming up with an altogether different approach.
+	# This seems like the best balance between getting rid of
+	# images that don't have a legitimate face and not rejecting
+	# too many good ones. Open to rebalancing this in the future
+	# or coming up with an altogether different approach.
 
 	if (passed_classifier_count >= 3)
 		return true
@@ -110,8 +113,8 @@ def restore_output
 	$stderr = STDERR
 end
 
-def save_last_tweet_id(last_tweet_id)
-	should_take_action_this_round = false
+def saved_last_tweet_id?(last_tweet_id)
+	did_save = false
 
 	unless (last_tweet_id.nil?)
 	  begin
@@ -119,32 +122,33 @@ def save_last_tweet_id(last_tweet_id)
 		file.write(last_tweet_id.to_s)
 		file.close
 
-		should_take_action_this_round = true
+		did_save = true
 	  rescue => err
 		botlog("Couldn't write to last tweet file. Error: #{err}")
 	  end
 	else
-	  botlog("Last tweet ID was nil. Shoul skip action this round.")
+	  botlog("Last tweet ID was nil.")
 	end
 
-	return should_take_action_this_round
+	return did_save
 end
 
+# Prepare for search.
 
 redirect_output()
 client = configure_twitter("#{directory_for_script()}/.twitter_credentials")
 last_tweet_id = fetch_last_tweet_id()
 
-# Search for selfie tweets and pick out which ones we want to take action on.
+# Search for selfie tweets.
 
-candidate_last_tweet_id = nil
+candidate_id = nil
 respondable_tweets = []
 
 results = client.search("selfie -rt filter:links", :result_type => "recent", :since_id => last_tweet_id.to_i, :include_entities => true)
+
 results.take(100).collect do |tweet|
-	# Keep track of the largest tweet ID.
-  	if (candidate_last_tweet_id.nil?) or (tweet.id.to_i > candidate_last_tweet_id)
-		candidate_last_tweet_id = tweet.id.to_i
+  	if candidate_id.nil? or tweet.id.to_i > candidate_id
+		candidate_id = tweet.id.to_i
   	end
 
 	if (tweet.id.to_i <= last_tweet_id.to_i)
@@ -160,43 +164,47 @@ results.take(100).collect do |tweet|
   	end
 
   	# 2. Tweet has a single, Twitter hosted image.
+  	botlog("media count: #{tweet.media.count}")
   	if (not tweet.media?) or (tweet.media.count > 1)
   		next
   	end
 
-	# 2a. Tweet has a sinle link (to the image).
+	# 3. Tweet has a single link (to the image).
 	if (tweet.uris?)
 		next
 	end	
 
-  	# 3. No @ mentions.
+  	# 4. No @ mentions.
   	if tweet.user_mentions?
   		next
   	end
 
-  	# 4. No hashtags, unless there's only one and it's #selfie.
-  	if tweet.hashtags? and not ((tweet.hashtags.count == 1) and (tweet.hashtags.first.text == "selfie"))
+  	# 5. No hashtags, unless there's only one and it's #selfie.
+  	if tweet.hashtags? and not ((tweet.hashtags.count == 1) and \
+	   (tweet.hashtags.first.text.downcase == "selfie"))
   		next
   	end
 
-	# 5. There's a wierd thing where a lot of hashtags are crammed
+	# 6. There's a wierd thing where a lot of hashtags are crammed
 	# together with no spaces and these don't get counted as
-	# hashtags by Twitter. So I'm going to run a simple regex and
-	# try to avoid them.
+	# hashtags by Twitter. Here's a simple regex to try and avoid them.
 	if tweet.text =~ /(#selfie#)|(\S#selfie)/i
 		next
 	end	
 	
-	# 6. Tweets that start with "when" seem to have a high chance
+	# 7. Tweets that start with "when" seem to have a high chance
 	# of being a fake image that isn't of the user.
 	if tweet.text.downcase.start_with?("when")
 		next
 	end
 
+	# Make sure the image contains a face.
+	
 	url = tweet.media.first.attrs[:media_url]
+	open_failure_flag = false
+	image_file = "#{directory_for_script()}/selfie_candidate.png"	
 
-	open_failure_flag = false	
-	File.open("#{directory_for_script()}/selfie_candidate.png", 'wb') do |file_handle|
+	File.open(image_file, 'wb') do |file_handle|
 		begin
 			file_handle.write open(url).read
 		rescue => err
@@ -205,21 +213,22 @@ results.take(100).collect do |tweet|
 		end
 	end
 
-	if open_failure_flag
-		next
-	end
-
-	if image_contains_face?("#{directory_for_script()}/selfie_candidate.png")
+	if not open_failure_flag and image_contains_face?(image_file)
 		respondable_tweets << tweet
 	end
 end
 
-should_take_action_this_round = save_last_tweet_id(candidate_last_tweet_id)
+# Mark tweets as favorite (at most 3 per round).
+
+should_take_action_this_round = saved_last_tweet_id?(candidate_id)
 if should_take_action_this_round
 	if respondable_tweets.count > 3
 		respondable_tweets = respondable_tweets.sample(3)
 	end
 
+	# Keep a list of users that are favorited so we don't mark
+	# multiple tweets by a single user in the same round.
+	
 	users_favorited = []
 	respondable_tweets.each do |tweet|
 		user = tweet.attrs[:user]
