@@ -13,6 +13,7 @@ Copy twitter_credentials to .twitter_credentials and replace with credentials fr
 Changelog
 =========
 
+1.0.3 - Only consider tweets with a single link. Change max hashtag search string. Randomly tweet Anamanaguchi lyrics.
 1.0.2 - Set max # characters in tweet. Filter out tweets that start with "when", as it's highly predictive of a meme. Redirect standard error to log. Don't favorite more than one tweet by a user in the same round.
 1.0.1 - Fixed bug where hashtag filtering wasn't working if first hastag was #selfie.
 1.0.0 - Initial release.
@@ -40,13 +41,12 @@ Pseudocode
 	+ that don't have 1 or 2 faces as detected by a majority of OpenCV's frontal face algorithms.
 6. Randonly picks at most 3 tweets to favorite.
 7. Saves the most recently seen Tweet ID.
+8. Randomly tweet lyrics from Anamanaguchi's (T-T)b.
 
 Future
 ======
 
-+ Allow Instagram photos?
-+ Better way to filter out retweets besides checking for "RT".
-+ Keyword block list.
++ Keyword blacklist.
 
 License
 =======

@@ -12,6 +12,8 @@ include OpenCV
 BOT_NAME = "astralbot"
 BOT_VERSION = "1.0.3"
 
+Encoding.default_external = Encoding::UTF_8
+Encoding.default_internal = Encoding::UTF_8
 
 def botlog(text)
 	puts "#{Time.now.strftime("%Y:%m:%d %I:%M:%S")} - #{text}"
@@ -164,7 +166,6 @@ results.take(100).collect do |tweet|
   	end
 
   	# 2. Tweet has a single, Twitter hosted image.
-  	botlog("media count: #{tweet.media.count}")
   	if (not tweet.media?) or (tweet.media.count > 1)
   		next
   	end
@@ -208,12 +209,11 @@ results.take(100).collect do |tweet|
 		begin
 			file_handle.write open(url).read
 		rescue => err
-			botlog("Couldn't save image locally. Error: #{err}")
 			open_failure_flag = true
 		end
 	end
 
-	if not open_failure_flag and image_contains_face?(image_file)
+	if (not open_failure_flag) and image_contains_face?(image_file)
 		respondable_tweets << tweet
 	end
 end
@@ -237,12 +237,40 @@ if should_take_action_this_round
 		if (not users_favorited.include?(user_id))
 			begin
 				client.favorite(tweet.id)
-				botlog("Favoriting: #{tweet.id}")
 				users_favorited << user_id
-			rescue => err
-				botlog("Couldn't favorite. Error: #{err}")
 			end
 		end
+	end
+end
+
+# Randomly tweet lyrics from (T-T)b.
+
+if rand(343) == 342
+	begin
+		lyrics_file = "#{directory_for_script()}/ttb.txt"
+		lines = File.foreach(lyrics_file).to_a
+		current_line = 0
+
+		if lines.length > 0
+			current_line = lines[0].to_i
+		end
+
+		if (current_line > 0) and (current_line <= lines.length)
+			botlog("tweeting text: #{lines[current_line]}")
+			client.update("#{lines[current_line]}")
+			
+			current_line += 1
+			if current_line >= lines.length
+				current_line = 1
+			end
+			lines[0] = current_line
+
+			File.open(lyrics_file, "w") do |f|
+				f.puts(lines)
+			end
+		end
+	rescue => err
+		botlog("Could not access ttb file. Error: #{err}")
 	end
 end
 
